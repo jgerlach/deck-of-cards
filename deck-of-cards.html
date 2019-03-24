@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Deck of Cards</title>
+  <meta name="description" content="Deck of Cards" />
+  <meta name="author" content="Draw from a deck of cards" />
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div id="root">
+    <h1>Deck of Cards</h1>
+    <div id="loading-container">
+      <h3>Drawing Cards...</h3>
+      <div class="hand">
+        <div class="card card-1"><span></span></div>
+        <div class="card card-2"><span></span></div>
+        <div class="card card-3"><span></span></div>
+      </div>
+    </div>
+    <div id="SPADES">
+    </div>
+    <div id="CLUBS"></div>
+    <div id="HEARTS"></div>
+    <div id="DIAMONDS"></div>
+  </div>
+  <script>
+
+    // NOTE: async/await doesn't work in IE 11
+    const api = {
+      async getDeckId() {
+        try {
+          let deck = await fetch("https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1");
+          let newDeck = await deck.json();
+          return await newDeck.deck_id;
+        } catch (error) {
+          console.log(error);
+        }
+      },
+      async drawCards(deckId, count) {
+        try {
+          let cards = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=${count}`);
+          return await cards.json()
+        } catch (error) {
+          console.log(error)
+        }
+      }
+    };
+
+    const sortCards = cards => {
+      Object.keys(cards).forEach(suit => {
+        cards[suit] = cards[suit].sort((a, b) => a.weight - b.weight).map(card => card.value);
+        console.log(`${suit}:${cards[suit]}`);
+        document.getElementById(suit).innerHTML = `${suit}: [${cards[suit]}]`;
+      });
+      // stop loader
+      document.getElementById('loading-container').remove()
+    };
+
+    const addToPile = (card, weight) => {
+      drawnCards[card.suit].push({ value: card.value, weight });
+    }
+
+    const checkForQueens = deckId => {
+      if (queenCount === 4) {
+        sortCards(drawnCards);
+      }
+      if (queenCount >= 4) return;
+      api.drawCards(deckId, 2).then(response => {
+        console.log(response);
+        response.cards.forEach(card => {
+          if (card.value === "QUEEN") {
+            queenCount += 1;
+          }
+          switch (card.value) {
+            case "JACK":
+              addToPile(card, 11)
+              break;
+            case "QUEEN":
+              addToPile(card, 12)
+              break;
+            case "KING":
+              addToPile(card, 13)
+              break;
+            case "ACE":
+              addToPile(card, 14)
+              break;
+            default:
+              addToPile(card, card.value)
+              break;
+          }
+        });
+        // limit calls to every second
+        setTimeout(() => {
+          checkForQueens(deckId);
+        }, 1000);
+      });
+    };
+
+    let queenCount = 0;
+    let drawnCards = {
+      CLUBS: [],
+      DIAMONDS: [],
+      HEARTS: [],
+      SPADES: []
+    };
+    api.getDeckId().then(deckId => {
+      checkForQueens(deckId);
+    });
+  </script>
+</body>
+
+</html>
